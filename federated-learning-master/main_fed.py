@@ -66,6 +66,7 @@ if __name__ == '__main__':
     net_glob.train()
 
     # copy weights
+    # init global model weight
     w_glob = net_glob.state_dict()
 
     # training
@@ -76,44 +77,55 @@ if __name__ == '__main__':
     best_loss = None
     val_acc_list, net_list = [], []
 
-    # if args.all_clients: 
-    #     print("Aggregation over all clients")
-    #     w_locals = [w_glob for i in range(args.num_users)]
-    # for iter in range(args.epochs):
-    #     loss_locals = []
-    #     if not args.all_clients:
-    #         w_locals = []
-    #     m = max(int(args.frac * args.num_users), 1)
-    #     idxs_users = np.random.choice(range(args.num_users), m, replace=False)
-    #     for idx in idxs_users:
-    #         local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
-    #         w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
-    #         if args.all_clients:
-    #             w_locals[idx] = copy.deepcopy(w)
-    #         else:
-    #             w_locals.append(copy.deepcopy(w))
-    #         loss_locals.append(copy.deepcopy(loss))
-    #     # update global weights
-    #     w_glob = FedAvg(w_locals)
+    # args.num_users -> 100
+    if args.all_clients: 
+        print("Aggregation over all clients")
+        w_locals = [w_glob for i in range(args.num_users)]
+    for iter in range(args.epochs):
+        loss_locals = []
+        if not args.all_clients:
+            w_locals = []
+        # args.frac: the fraction of clients: default 0.1
+        # 每轮通信参与联邦训练的客户端数量
+        m = max(int(args.frac * args.num_users), 1)
+        # clients sample 过程
+        idxs_users = np.random.choice(range(args.num_users), m, replace=False)
+        for idx in idxs_users:
+            # local model train process
+            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])
+            # w: 本地模型基于本地私有数据训练得到的权重
+            # loss: 相应训练损失
+            w, loss = local.train(net=copy.deepcopy(net_glob).to(args.device))
+            if args.all_clients:
+                w_locals[idx] = copy.deepcopy(w)
+            else:
+                w_locals.append(copy.deepcopy(w))
+            loss_locals.append(copy.deepcopy(loss))
+            # w_locals -> 以 list 的形式汇总本地客户端的训练结果权重
+            # loss_locals -> 以 list 的形式汇总本地客户端的训练损失
+        # update global weights
+        # 每一轮通信根据本地训练结果, 通过中央服务器进行模型聚合
+        w_glob = FedAvg(w_locals)
 
-    #     # copy weight to net_glob
-    #     net_glob.load_state_dict(w_glob)
+        # copy weight to net_glob
+        # 在下一个 round 时本地客户端继承训练结果
+        net_glob.load_state_dict(w_glob)
 
-    #     # print loss
-    #     loss_avg = sum(loss_locals) / len(loss_locals)
-    #     print('Round {:3d}, Average loss {:.3f}'.format(iter, loss_avg))
-    #     loss_train.append(loss_avg)
+        # print loss
+        loss_avg = sum(loss_locals) / len(loss_locals)
+        print('Round {:3d}, Average loss {:.3f}'.format(iter, loss_avg))
+        loss_train.append(loss_avg)
 
     # # plot loss curve
-    # plt.figure()
-    # plt.plot(range(len(loss_train)), loss_train)
-    # plt.ylabel('train_loss')
-    # plt.savefig('./save/fed_{}_{}_{}_C{}_iid{}.png'.format(args.dataset, args.model, args.epochs, args.frac, args.iid))
+    plt.figure()
+    plt.plot(range(len(loss_train)), loss_train)
+    plt.ylabel('train_loss')
+    plt.savefig('./save/fed_{}_{}_{}_C{}_iid{}.png'.format(args.dataset, args.model, args.epochs, args.frac, args.iid))
 
-    # # testing
-    # net_glob.eval()
-    # acc_train, loss_train = test_img(net_glob, dataset_train, args)
-    # acc_test, loss_test = test_img(net_glob, dataset_test, args)
-    # print("Training accuracy: {:.2f}".format(acc_train))
-    # print("Testing accuracy: {:.2f}".format(acc_test))
+    # testing
+    net_glob.eval()
+    acc_train, loss_train = test_img(net_glob, dataset_train, args)
+    acc_test, loss_test = test_img(net_glob, dataset_test, args)
+    print("Training accuracy: {:.2f}".format(acc_train))
+    print("Testing accuracy: {:.2f}".format(acc_test))
 

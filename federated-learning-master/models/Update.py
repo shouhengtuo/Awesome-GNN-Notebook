@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 import numpy as np
 import random
 from sklearn import metrics
-
+from utils.Detective import tensor_deteciteve
 
 class DatasetSplit(Dataset):
     def __init__(self, dataset, idxs):
@@ -28,17 +28,22 @@ class LocalUpdate(object):
         self.args = args
         self.loss_func = nn.CrossEntropyLoss()
         self.selected_clients = []
+        # idxs: mnist 60000 imgs -> 600 x 100 (每个客户端持有 600 imgs 的私有数据)
+        # batch_size = self.args.local_bs: 10 (本地 model 训练的 batch_size 为 10)
         self.ldr_train = DataLoader(DatasetSplit(dataset, idxs), batch_size=self.args.local_bs, shuffle=True)
-
+        tensor_deteciteve(self.ldr_train)
     def train(self, net):
         net.train()
         # train and update
         optimizer = torch.optim.SGD(net.parameters(), lr=self.args.lr, momentum=self.args.momentum)
 
         epoch_loss = []
+        # self.args.local_ep: the number of local epochs: default 5
         for iter in range(self.args.local_ep):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.ldr_train):
+                # images: variable :  <class 'torch.Tensor'> :  torch.Size([10, 1, 28, 28])
+                # labels: variable :  <class 'torch.Tensor'> :  torch.Size([10])
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
                 net.zero_grad()
                 log_probs = net(images)

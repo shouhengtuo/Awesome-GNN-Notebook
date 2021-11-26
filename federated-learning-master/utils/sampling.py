@@ -12,7 +12,7 @@ def mnist_iid(dataset, num_users):
     Sample I.I.D. client data from MNIST dataset
     :param dataset: variable :  <class 'torch.Tensor'> :  torch.Size([60000, 28, 28]) -> train_data
     :param num_users:   客户端个数 clients num
-    :return: dict of image index
+    :return: dict of image index (num_clients)
     """
     # set() 函数创建一个无序不重复元素集, 可进行关系测试, 删除重复数据, 还可以计算交集, 差集, 并集等。
     # np.random.choice(ndarray, int, replace = True, p = None)
@@ -21,7 +21,7 @@ def mnist_iid(dataset, num_users):
     
     # local dataset num
     num_items = int(len(dataset)/num_users) 
-    # 所有客户端数据 samples 的索引字典, 所有数据 samples 的索引列表
+    # dict_users -> 所有客户端数据 samples 的索引字典, all_idxs -> 所有数据 samples 的索引列表
     dict_users, all_idxs = {}, [i for i in range(len(dataset))]
     # 基于 clients num 执行循环
     for i in range(num_users):
@@ -37,9 +37,9 @@ def mnist_noniid(dataset, num_users):
     Sample non-I.I.D client data from MNIST dataset
     :param dataset:
     :param num_users:
-    :return:
+    :return: dict of image index (num_clients)
     """
-    # 将全部的 data 分成 200 组, 每一组 300 个数据 sample
+    # 将全部的 data 分成 200 组, 每一组 300 个数据 sample (num_users = 100, 60000/100 = 200 x 300)
     # 根据 clients 的数量, 需要从 0-199 中采样两组对应 2 x 300 = 600 个数据 sample 作为 client 的索引
     num_shards, num_imgs = 200, 300
     idx_shard = [i for i in range(num_shards)]
